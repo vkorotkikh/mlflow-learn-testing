@@ -1,0 +1,41 @@
+# Environment Variables for Docker Compose
+
+# MLflow Configuration
+MLFLOW_TRACKING_URI=http://localhost:5000
+MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
+MLFLOW_DEFAULT_ARTIFACT_ROOT=./mlruns
+
+# Database Configuration (for production)
+POSTGRES_DB=mlflow
+POSTGRES_USER=mlflow
+POSTGRES_PASSWORD=mlflow123
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+# Airflow Configuration
+AIRFLOW_UID=1000
+AIRFLOW_GID=0
+AIRFLOW__CORE__FERNET_KEY=vp_z9-R1I7-NJ-ZCk-SWz1L0N8Hp1rkI_dYY3pJ-_Eg=
+
+# Kubeflow Configuration
+KUBEFLOW_ENDPOINT=http://localhost:8080
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Monitoring and Alerting
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+
+# Model Configuration
+MODEL_ACCURACY_THRESHOLD=0.85
+MODEL_PRECISION_THRESHOLD=0.85
+MODEL_DEGRADATION_THRESHOLD=0.05
+
+# Security
+MLFLOW_TRACKING_USERNAME=admin
+MLFLOW_TRACKING_PASSWORD=password
+
+
