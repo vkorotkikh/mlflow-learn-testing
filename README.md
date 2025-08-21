@@ -10,8 +10,10 @@ This project showcases a complete MLOps pipeline that includes:
 - **Experiment Tracking**: MLflow for logging experiments, metrics, and model registry
 - **Pipeline Orchestration**: Kubeflow Pipelines for ML workflow execution
 - **Workflow Management**: Airflow for scheduling and monitoring the entire pipeline
+- **Model Serving**: BentoML for high-performance model serving with auto-scaling
+- **API Layer**: FastAPI with caching, monitoring, and batch processing
 - **Containerization**: Docker containers for reproducible environments
-- **Model Deployment**: Automated model promotion and deployment decisions
+- **Model Deployment**: Automated model promotion and Kubernetes deployment
 
 ## 🏗️ Architecture
 
@@ -51,6 +53,13 @@ MLflow-learn-testing/
 │   │   └── experiment_manager.py   # Experiment management
 │   └── models/
 │       └── model_registry.py  # Model registry operations
+├── serving/                    # Model serving with BentoML
+│   ├── bentoml_service.py    # BentoML service definition
+│   ├── bento_builder.py      # Model packaging and deployment
+│   ├── fastapi_server.py     # FastAPI server with advanced features
+│   ├── performance_test.py   # Performance testing tools
+│   └── kubernetes/
+│       └── bentoml-deployment.yaml  # K8s deployment configs
 ├── docker/                     # Docker configurations
 │   ├── Dockerfile.mlflow      # MLflow server
 │   ├── Dockerfile.pipeline    # Pipeline execution
@@ -135,8 +144,12 @@ docker-compose -f docker/docker-compose.yml --profile postgres --profile jupyter
 ### Services URLs
 
 - **MLflow UI**: http://localhost:5000
+- **BentoML Service**: http://localhost:5000 (model serving)
+- **FastAPI**: http://localhost:8000 (API with docs at /docs)
 - **Airflow UI**: http://localhost:8080 (admin/admin)
 - **Jupyter Lab**: http://localhost:8888
+- **Prometheus**: http://localhost:9090 (metrics)
+- **Grafana**: http://localhost:3000 (dashboards)
 
 ## 🔄 Pipeline Components
 
@@ -430,6 +443,76 @@ docker logs airflow-standalone
 python models/training.py --debug
 ```
 
+## 🚀 Model Serving with BentoML
+
+### Start BentoML Service
+
+```bash
+# Package model from MLflow
+python serving/bento_builder.py
+
+# Start BentoML service
+bentoml serve serving.bentoml_service:iris_classifier_service --reload
+
+# Or with Docker
+docker build -f docker/Dockerfile.bentoml -t iris-bentoml .
+docker run -p 5000:5000 iris-bentoml
+```
+
+### Start FastAPI Server
+
+```bash
+# Start FastAPI with advanced features
+python serving/fastapi_server.py
+
+# Or with uvicorn
+uvicorn serving.fastapi_server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### API Endpoints
+
+**BentoML Endpoints:**
+- `POST /predict` - Single prediction
+- `POST /predict_batch` - Batch predictions
+- `GET /health` - Health check
+- `GET /model_info` - Model information
+
+**FastAPI Endpoints:**
+- `GET /` - API documentation
+- `GET /docs` - Interactive Swagger UI
+- `POST /predict` - Cached predictions
+- `POST /predict/batch` - Async batch processing
+- `GET /metrics` - Prometheus metrics
+- `GET /analytics/summary` - Performance analytics
+
+### Performance Testing
+
+```bash
+# Run performance tests
+python serving/performance_test.py --test-type all --visualize --report
+
+# Load test with custom parameters
+python serving/performance_test.py \
+    --url http://localhost:8000 \
+    --test-type load \
+    --num-requests 5000 \
+    --concurrent-users 50
+```
+
+### Deploy to Kubernetes
+
+```bash
+# Apply Kubernetes configurations
+kubectl apply -f serving/kubernetes/bentoml-deployment.yaml
+
+# Check deployment status
+kubectl get pods -n mlops
+kubectl get svc -n mlops
+
+# Scale deployment
+kubectl scale deployment iris-classifier-bentoml -n mlops --replicas=5
+```
+
 ## 🚀 Deployment
 
 ### Development Environment
@@ -437,13 +520,20 @@ python models/training.py --debug
 ```bash
 # Quick start for development
 make quick-start
+
+# Start all services including BentoML
+docker-compose -f docker/docker-compose.yml --profile bentoml up -d
 ```
 
 ### Staging Environment
 
 ```bash
-# Deploy to staging
+# Deploy to staging with BentoML
 make deploy-staging
+
+# Deploy BentoML service
+python serving/bento_builder.py
+bentoml containerize iris_classifier_service:latest
 ```
 
 ### Production Environment
@@ -451,14 +541,20 @@ make deploy-staging
 For production deployment:
 
 1. Update configuration for production URLs
-2. Set up external databases (PostgreSQL for MLflow)
+2. Set up external databases (PostgreSQL for MLflow, Redis for caching)
 3. Configure proper authentication and security
-4. Set up monitoring and alerting
-5. Deploy to Kubernetes cluster
+4. Set up monitoring with Prometheus and Grafana
+5. Deploy to Kubernetes cluster with auto-scaling
 
 ```bash
-# Production deployment
+# Production deployment with BentoML
 make deploy-prod
+
+# Deploy to Kubernetes
+kubectl apply -f serving/kubernetes/bentoml-deployment.yaml
+
+# Monitor with Prometheus
+kubectl port-forward -n monitoring prometheus-0 9090:9090
 ```
 
 ## 📚 Additional Resources
