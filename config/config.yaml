@@ -68,9 +68,38 @@ monitoring:
   model_degradation_threshold: 0.05
   data_drift_threshold: 0.1
   performance_monitoring_interval: 3600  # seconds
+  
+  # Grafana Configuration
+  grafana:
+    url: "http://localhost:3000"
+    admin_user: "admin"
+    admin_password: "admin123"
+    datasources:
+      prometheus_url: "http://prometheus:9090"
+      mlflow_url: "http://mlflow:5000"
+    dashboards:
+      - "mlops-overview"
+      - "model-performance"
+      - "infrastructure-monitoring"
+      - "data-quality"
+    
+  # Prometheus Configuration
+  prometheus:
+    url: "http://localhost:9090"
+    scrape_interval: "15s"
+    evaluation_interval: "15s"
+    retention: "30d"
+    
+  # Alerting Configuration
   alerts:
     email: "admin@company.com"
     slack_webhook: null
+    alertmanager_url: "http://localhost:9093"
+    alert_rules:
+      model_accuracy_threshold: 0.85
+      critical_accuracy_threshold: 0.75
+      high_response_time_threshold: 5.0  # seconds
+      failure_rate_threshold: 0.5  # 50%
     
 # Infrastructure Configuration
 infrastructure:
