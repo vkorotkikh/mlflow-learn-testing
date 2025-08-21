@@ -1,0 +1,42 @@
+# MLflow Metrics Exporter for Prometheus
+FROM python:3.9-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV EXPORTER_HOME=/opt/mlflow-exporter
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libc6-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create exporter user and directories
+RUN useradd -m -s /bin/bash exporter && \
+    mkdir -p $EXPORTER_HOME && \
+    chown -R exporter:exporter $EXPORTER_HOME
+
+# Install Python dependencies
+COPY requirements-exporter.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-exporter.txt
+
+# Copy exporter code
+COPY mlflow_prometheus_exporter.py $EXPORTER_HOME/
+COPY exporter_config.yaml $EXPORTER_HOME/
+
+# Switch to exporter user
+USER exporter
+WORKDIR $EXPORTER_HOME
+
+# Expose exporter port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/metrics || exit 1
+
+# Start the exporter
+CMD ["python", "mlflow_prometheus_exporter.py"]
+
