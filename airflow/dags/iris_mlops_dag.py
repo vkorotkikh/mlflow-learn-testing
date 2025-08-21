@@ -393,11 +393,74 @@ def promote_model_to_production(**context):
         logging.info(f"Model {model_name} version {model_version.version} promoted to Production")
         
         context['task_instance'].xcom_push(key='promoted_model_version', value=model_version.version)
+        
+        # Deploy with BentoML after promotion
+        deploy_with_bentoml(model_name, model_version.version)
+        
         return True
         
     except Exception as e:
         logging.error(f"Error promoting model: {e}")
         raise
+
+def deploy_with_bentoml(model_name: str, model_version: str):
+    """Deploy the promoted model with BentoML"""
+    import subprocess
+    import sys
+    import os
+    
+    try:
+        # Add the serving directory to Python path
+        serving_path = os.path.join(os.path.dirname(__file__), '../../serving')
+        sys.path.insert(0, serving_path)
+        
+        from bento_builder import BentoModelBuilder
+        
+        # Initialize BentoML builder
+        builder = BentoModelBuilder(mlflow_tracking_uri=MLFLOW_TRACKING_URI)
+        
+        # Package the model
+        logging.info(f"Packaging model {model_name} version {model_version} with BentoML")
+        service_name = f"{model_name}_v{model_version}"
+        bento_path = builder.package_mlflow_model(
+            model_name=model_name,
+            model_version=model_version,
+            service_name=service_name
+        )
+        
+        # Containerize the service
+        logging.info("Containerizing BentoML service")
+        docker_image = builder.containerize_bento(
+            service_name=service_name,
+            docker_image_name=f"iris-classifier-v{model_version}"
+        )
+        
+        # Deploy to Kubernetes if configured
+        if Variable.get("deploy_to_k8s", default_var="false") == "true":
+            logging.info("Deploying to Kubernetes")
+            k8s_config = builder.deploy_to_kubernetes(
+                service_name=service_name,
+                namespace="mlops",
+                replicas=3
+            )
+            
+            # Apply Kubernetes configurations
+            subprocess.run([
+                "kubectl", "apply", "-f", k8s_config["deployment_file"]
+            ], check=True)
+            
+            subprocess.run([
+                "kubectl", "apply", "-f", k8s_config["service_file"]
+            ], check=True)
+            
+            logging.info(f"Model deployed to Kubernetes as {service_name}")
+        
+        logging.info(f"BentoML deployment completed for {model_name} version {model_version}")
+        
+    except Exception as e:
+        logging.error(f"Error deploying with BentoML: {e}")
+        # Don't fail the entire pipeline if BentoML deployment fails
+        logging.warning("BentoML deployment failed but continuing with pipeline")
 
 def send_pipeline_notification(**context):
     """Send notification about pipeline completion"""
